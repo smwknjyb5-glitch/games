@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>تتبّع القلم</title>
+<style>
+:root{--navy:#0f1e3d;--card:#16294f;--gold:#e8b84a;--ink:#f4efe0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--navy);color:var(--ink);font-family:Tahoma,"Segoe UI",sans-serif}
+header{text-align:center;padding:18px 12px 4px}
+h1{margin:0;color:var(--gold);font-size:1.5rem}
+header p{margin:4px 0 0;opacity:.8;font-size:.9rem}
+.panel{max-width:900px;margin:10px auto;padding:12px;background:var(--card);border-radius:14px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #2c4478}
+.tab{padding:7px 14px;border:0;border-radius:10px;background:#2c4478;color:var(--ink);cursor:pointer;font:inherit;font-size:.9rem}
+.tab.on{background:var(--gold);color:var(--navy);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border:1px solid var(--gold);border-radius:20px;background:none;color:var(--ink);cursor:pointer;font:inherit;font-size:.85rem;min-width:42px}
+.chip.on{background:var(--gold);color:var(--navy);font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px;font-size:.9rem}
+select,input[type=text]{font:inherit;padding:5px;border-radius:8px;border:1px solid var(--gold);background:#fff;color:#000}
+.btn{padding:9px 16px;border:0;border-radius:10px;background:var(--gold);color:var(--navy);font:inherit;font-weight:700;cursor:pointer}
+.btn.alt{background:#2c4478;color:var(--ink)}
+:focus-visible{outline:3px solid #fff;outline-offset:2px}
+#sheet{max-width:900px;margin:10px auto 30px;background:#fff;color:#000;padding:16px;border-radius:6px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px;font-size:.95rem;flex-wrap:wrap}
+#ttl{font-size:1.1rem;font-weight:700;border:0;background:none;color:#000;padding:0;min-width:200px}
+.grid{display:grid;gap:10px}
+.card{border:1.5px solid #888;border-radius:8px;padding:4px;text-align:center}
+.card svg{width:100%;height:auto;display:block;touch-action:none}
+.card small{display:block;font-size:.8rem;color:#333}
+@media print{body{background:#fff}header,.panel{display:none}#sheet{margin:0;padding:0;max-width:none;border-radius:0}.card{break-inside:avoid}@page{margin:10mm}}
+</style>
+</head>
+<body>
+<header>
+  <h1>تتبّع القلم</h1>
+  <p>اختر الأشكال والحروف والأرقام، ثم اطبع الورقة أو احفظها صورة، أو دع الطفل يتتبّع بإصبعه على الشاشة</p>
+</header>
+
+<div class="panel">
+  <div class="tabs" id="tabs"></div>
+  <div class="chips" id="chips"></div>
+  <div class="row">
+    <button class="btn alt" id="all">تحديد كل المجموعة</button>
+    <button class="btn alt" id="none">إلغاء التحديد</button>
+    <label>الخط: <select id="st"><option value="dot">نقاط</option><option value="dash">شرطات</option><option value="solid">خط متصل</option></select></label>
+    <label>السُّمك: <input type="range" id="w" min="1" max="3.4" step=".2" value="1.8"></label>
+    <label>الأعمدة: <select id="cols"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+  </div>
+  <div class="row">
+    <button class="btn" id="print">طباعة</button>
+    <button class="btn" id="save">حفظ كصورة</button>
+    <button class="btn alt" id="clr">مسح رسم الطفل</button>
+  </div>
+</div>
+
+<div id="sheet">
+  <div class="head">
+    <input id="ttl" type="text" value="ورقة تتبّع القلم" aria-label="عنوان الورقة">
+    <span>الاسم: ................................</span>
+    <span>التاريخ: ................</span>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const CATS=["أشكال","حروف عربية","أرقام","ABC كبيرة","abc صغيرة"];
+const SHAPES=[
+["خط مستقيم","M8 30H92"],
+["خط مائل","M8 50L92 10"],
+["خط متعرج","M8 45L26 15L44 45L62 15L80 45L92 25"],
+["خط موجي","M6 30C16 5 28 5 38 30S60 55 70 30S88 5 94 30"],
+["قفزات","M6 45H20V15H34V45H48V15H62V45H76V15H90"],
+["حلزون","M50 30C50 26 56 26 56 31C56 38 44 38 44 29C44 19 62 19 62 32C62 46 38 46 38 28C38 10 68 10 68 33C68 54 32 54 32 26"],
+["دائرة","M74 30A24 24 0 1 1 26 30A24 24 0 1 1 74 30"],
+["مربّع","M30 8H70V52H30Z"],
+["مثلّث","M50 6L88 54H12Z"],
+["نجمة","M50 4L61 24L84 25L67 40L72 58L50 48L28 58L33 40L16 25L39 24Z"],
+["قلب","M50 54C10 28 22 4 50 20C78 4 90 28 50 54"],
+["بيت","M20 54V28L50 6L80 28V54Z M42 54V38H58V54"],
+["شمس","M62 30A12 12 0 1 1 38 30A12 12 0 1 1 62 30 M50 3V9 M50 51V57 M22 30H28 M72 30H78 M30 10L34 14 M70 10L66 14 M30 50L34 46 M70 50L66 46"],
+["سمكة","M12 30C30 8 58 8 74 30C58 52 30 52 12 30Z M74 30L92 14V46Z"]
+];
+const AR="ا ألف,ب باء,ت تاء,ث ثاء,ج جيم,ح حاء,خ خاء,د دال,ذ ذال,ر راء,ز زاي,س سين,ش شين,ص صاد,ض ضاد,ط طاء,ظ ظاء,ع عين,غ غين,ف فاء,ق قاف,ك كاف,ل لام,م ميم,ن نون,ه هاء,و واو,ي ياء".split(",");
+const P=[];
+SHAPES.forEach(s=>P.push({n:s[0],d:s[1],c:0}));
+AR.forEach(s=>P.push({n:s.slice(2),g:s[0],c:1,ar:1}));
+"0123456789".split("").forEach(ch=>P.push({n:ch,g:ch,c:2}));
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(ch=>P.push({n:ch,g:ch,c:3}));
+"abcdefghijklmnopqrstuvwxyz".split("").forEach(ch=>P.push({n:ch,g:ch,c:4}));
+
+let sel=new Set([0,1,2,3,6,9]),cat=0;const ink={};
+const $=id=>document.getElementById(id);
+const FONT="Tahoma,'Segoe UI',Arial,sans-serif";
+
+function svg(i){
+  const p=P[i],w=+$('w').value,st=$('st').value;
+  const sw=p.g?w*0.55:w;
+  const da=st=='dot'?`0.1 ${(sw*2.4).toFixed(1)}`:st=='dash'?`${(sw*2.2).toFixed(1)} ${(sw*1.6).toFixed(1)}`:'none';
+  const strokes=(ink[i]||[]).map(s=>`<path d="${s}"/>`).join('');
+  let body;
+  if(p.g){
+    const y=p.ar?36:46,fs=p.ar?44:50;
+    body=`<text x="50" y="${y}" text-anchor="middle" font-family="${FONT}" font-size="${fs}" font-weight="bold" fill="none" stroke="#333" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${da}">${p.g}</text>`;
+  }else{
+    const m=p.d.match(/M\s*([\d.]+)[\s,]+([\d.]+)/);
+    body=`<path d="${p.d}" fill="none" stroke="#333" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${da}"/><circle cx="${m[1]}" cy="${m[2]}" r="2.8" fill="#2a9d4a"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" data-i="${i}"><rect width="100" height="60" fill="#fff"/>${body}<g class="ink" fill="none" stroke="#1565c0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">${strokes}</g></svg>`;
+}
+function tabs(){
+  $('tabs').innerHTML=CATS.map((c,k)=>`<button class="tab${k==cat?' on':''}" data-k="${k}">${c}</button>`).join('');
+}
+function chips(){
+  $('chips').innerHTML=P.map((p,i)=>p.c!==cat?'':`<button class="chip${sel.has(i)?' on':''}" data-i="${i}" aria-pressed="${sel.has(i)}">${p.g||p.n}</button>`).join('');
+}
+function render(){
+  const g=$('grid');
+  g.style.gridTemplateColumns=`repeat(${$('cols').value},1fr)`;
+  g.innerHTML=[...sel].sort((a,b)=>a-b).map(i=>`<div class="card">${svg(i)}<small>${P[i].g&&P[i].ar?P[i].g+' — '+P[i].n:P[i].n}</small></div>`).join('')||'<p>اختر عنصرًا واحدًا على الأقل.</p>';
+}
+$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;cat=+b.dataset.k;tabs();chips();};
+$('chips').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;const i=+b.dataset.i;sel.has(i)?sel.delete(i):sel.add(i);chips();render();};
+$('all').onclick=()=>{P.forEach((p,i)=>{if(p.c===cat)sel.add(i)});chips();render();};
+$('none').onclick=()=>{P.forEach((p,i)=>{if(p.c===cat)sel.delete(i)});chips();render();};
+['st','w','cols'].forEach(id=>$(id).oninput=render);
+$('clr').onclick=()=>{for(const k in ink)delete ink[k];render();};
+$('print').onclick=()=>window.print();
+
+/* drawing with finger / mouse */
+let cur=null;
+function pt(s,e){const p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(s.getScreenCTM().inverse());return [q.x.toFixed(1),q.y.toFixed(1)];}
+$('grid').addEventListener('pointerdown',e=>{
+  const s=e.target.closest('svg');if(!s)return;
+  s.setPointerCapture(e.pointerId);
+  const [x,y]=pt(s,e);
+  const el=document.createElementNS('http://www.w3.org/2000/svg','path');
+  s.querySelector('.ink').appendChild(el);
+  cur={s,el,i:+s.dataset.i,d:`M${x} ${y}L${x} ${y}`};el.setAttribute('d',cur.d);
+});
+$('grid').addEventListener('pointermove',e=>{
+  if(!cur)return;const [x,y]=pt(cur.s,e);cur.d+=`L${x} ${y}`;cur.el.setAttribute('d',cur.d);
+});
+const end=()=>{if(!cur)return;(ink[cur.i]=ink[cur.i]||[]).push(cur.d);cur=null;};
+$('grid').addEventListener('pointerup',end);
+$('grid').addEventListener('pointercancel',end);
+
+/* save as PNG */
+$('save').onclick=async()=>{
+  const ids=[...sel].sort((a,b)=>a-b);if(!ids.length)return;
+  const cols=+$('cols').value,cw=600,ch=360,lh=36,pad=20,top=70;
+  const rows=Math.ceil(ids.length/cols);
+  const c=document.createElement('canvas');
+  c.width=cols*(cw+pad)+pad;c.height=top+rows*(ch+lh+pad)+pad;
+  const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+  x.fillStyle='#000';x.direction='rtl';x.textAlign='right';x.font='bold 28px Tahoma';
+  x.fillText($('ttl').value,c.width-pad,44);
+  x.font='20px Tahoma';x.textAlign='left';x.fillText('الاسم: ........................',pad,44);
+  for(let k=0;k<ids.length;k++){
+    const col=cols-1-(k%cols),row=Math.floor(k/cols);
+    const ox=pad+col*(cw+pad),oy=top+row*(ch+lh+pad);
+    const img=new Image();
+    await new Promise(r=>{img.onload=r;img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg(ids[k]));});
+    x.strokeStyle='#888';x.lineWidth=2;x.strokeRect(ox,oy,cw,ch+lh);
+    x.drawImage(img,ox,oy,cw,ch);
+    x.fillStyle='#333';x.textAlign='center';x.font='20px Tahoma';x.fillText(P[ids[k]].n,ox+cw/2,oy+ch+25);
+  }
+  const a=document.createElement('a');a.download='tatabbu-alqalam.png';a.href=c.toDataURL('image/png');a.click();
+};
+tabs();chips();render();
+</script>
+</body>
+</html>
