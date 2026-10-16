@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -7,17 +7,19 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
-    height: 100%;
+    min-height: 100%;
     font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
     background: #0d0d1a;
     color: #fff;
-    overflow: hidden;
   }
   body {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     position: relative;
+    overflow-x: hidden;
+    padding: 16px;
+    min-height: 100vh;
   }
 
   /* Lights layer */
@@ -25,7 +27,6 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    transition: background 0.15s ease;
     z-index: 0;
   }
 
@@ -83,12 +84,13 @@
   .card {
     position: relative;
     z-index: 10;
+    margin: auto;
     background: rgba(20,20,35,0.85);
     backdrop-filter: blur(6px);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 22px;
     padding: 36px 30px;
-    width: min(420px, 90vw);
+    width: min(420px, 100%);
     text-align: center;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   }
@@ -188,6 +190,7 @@
     color: #fff;
     cursor: pointer;
     transition: transform 0.15s ease;
+    font-family: inherit;
   }
   button:active { transform: scale(0.97); }
   button:disabled { opacity: 0.5; cursor: default; }
@@ -219,7 +222,83 @@
   }
   #lyrics span.on { opacity: 1; color: #fbbf24; }
 
-  .hidden { display: none; }
+  /* ---------- Video recording box ---------- */
+  .rec-box {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    text-align: right;
+  }
+  .rec-box h2 {
+    font-size: 1rem;
+    margin-bottom: 14px;
+    color: #fde68a;
+    text-align: center;
+  }
+  .rec-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+  }
+  .rec-row input, .rec-row select {
+    width: 130px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid #3a3a55;
+    background: #171727;
+    color: #fff;
+    font-size: 0.95rem;
+    text-align: center;
+    font-family: inherit;
+  }
+  #recBtn { background: linear-gradient(90deg, #ef4444, #f97316); margin-top: 4px; }
+  .progress {
+    height: 8px;
+    border-radius: 6px;
+    background: #171727;
+    margin-top: 14px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.show { display: block; }
+  #progBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #fbbf24, #f472b6);
+  }
+  #recStatus {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #a5b4cb;
+    text-align: center;
+    min-height: 20px;
+  }
+  #recCanvas, #preview {
+    display: none;
+    width: 100%;
+    max-height: 340px;
+    object-fit: contain;
+    margin-top: 12px;
+    border-radius: 12px;
+    background: #000;
+  }
+  #recCanvas.show, #preview.show { display: block; }
+  #dlLink {
+    display: none;
+    margin-top: 12px;
+    padding: 13px;
+    border-radius: 12px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    color: #0d0d1a;
+    background: linear-gradient(90deg, #34d399, #60a5fa);
+  }
+  #dlLink.show { display: block; }
 </style>
 </head>
 <body>
@@ -253,6 +332,34 @@
     <div id="ageLine"></div>
     <div id="lyrics"></div>
   </div>
+
+  <!-- إنشاء الفيديو -->
+  <div class="rec-box">
+    <h2>🎬 إنشاء فيديو وحفظه</h2>
+
+    <div class="rec-row">
+      <label for="duration">⏱ مدة الفيديو (بالثواني)</label>
+      <input type="number" id="duration" min="3" max="600" step="1" value="20">
+    </div>
+
+    <div class="rec-row">
+      <label for="ratio">📐 أبعاد الفيديو</label>
+      <select id="ratio">
+        <option value="720x1280">عمودي 9:16</option>
+        <option value="720x720">مربع 1:1</option>
+        <option value="1280x720">أفقي 16:9</option>
+      </select>
+    </div>
+
+    <button id="recBtn">🔴 تسجيل الفيديو</button>
+
+    <div class="progress" id="progress"><div id="progBar"></div></div>
+    <div id="recStatus"></div>
+
+    <canvas id="recCanvas"></canvas>
+    <video id="preview" controls playsinline></video>
+    <a id="dlLink">⬇️ حفظ الفيديو على الجهاز</a>
+  </div>
 </div>
 
 <script>
@@ -267,8 +374,21 @@ const photoInputBtn = document.getElementById('photoInputBtn');
 const photoFrame = document.getElementById('photoFrame');
 const photoImg = document.getElementById('photoImg');
 
+const durationInput = document.getElementById('duration');
+const ratioSelect = document.getElementById('ratio');
+const recBtn = document.getElementById('recBtn');
+const progress = document.getElementById('progress');
+const progBar = document.getElementById('progBar');
+const recStatus = document.getElementById('recStatus');
+const recCanvas = document.getElementById('recCanvas');
+const previewVideo = document.getElementById('preview');
+const dlLink = document.getElementById('dlLink');
+const cx = recCanvas.getContext('2d');
+
 let isPlaying = false;
 let activeTimeouts = [];
+let recording = false;
+let cvPhotoScale = 1;
 
 function scheduleTimeout(fn, ms) {
   const id = setTimeout(fn, ms);
@@ -280,6 +400,8 @@ function clearAllTimeouts() {
   activeTimeouts.forEach(id => clearTimeout(id));
   activeTimeouts = [];
 }
+
+function hasPhoto() { return photoFrame.classList.contains('show'); }
 
 photoInput.addEventListener('change', () => {
   const file = photoInput.files[0];
@@ -297,62 +419,83 @@ photoInput.addEventListener('change', () => {
 const colors = ['#f87171','#fbbf24','#34d399','#60a5fa','#f472b6','#a78bfa'];
 const bulbCount = 18;
 const bulbs = [];
+const bulbData = []; // نسخة للرسم داخل الفيديو
 for (let i = 0; i < bulbCount; i++) {
   const b = document.createElement('div');
   b.className = 'bulb';
-  const angle = (i / bulbCount) * Math.PI * 2;
-  const usePerimeter = true;
-  b.style.left = (Math.random()*94 + 3) + 'vw';
-  b.style.top = (Math.random()*90 + 4) + 'vh';
+  const lx = Math.random() * 94 + 3;
+  const ly = Math.random() * 90 + 4;
+  b.style.left = lx + 'vw';
+  b.style.top = ly + 'vh';
   b.style.color = colors[i % colors.length];
   b.style.background = colors[i % colors.length];
   lightsLayer.appendChild(b);
   bulbs.push(b);
+  bulbData.push({ x: lx / 100, y: ly / 100, color: colors[i % colors.length], o: 0.25, s: 1, to: 0.25, ts: 1 });
 }
 
 function flashLights(active) {
-  bulbs.forEach(b => {
+  bulbs.forEach((b, i) => {
+    const d = bulbData[i];
     if (active) {
-      b.style.opacity = Math.random() > 0.4 ? 1 : 0.3;
-      b.style.transform = `scale(${0.8 + Math.random()*0.8})`;
+      const o = Math.random() > 0.4 ? 1 : 0.3;
+      const sc = 0.8 + Math.random() * 0.8;
+      b.style.opacity = o;
+      b.style.transform = `scale(${sc})`;
+      d.to = o; d.ts = sc;
     } else {
       b.style.opacity = 0.25;
       b.style.transform = 'scale(1)';
+      d.to = 0.25; d.ts = 1;
     }
   });
-  if (photoFrame.classList.contains('show')) {
-    photoImg.style.transform = active ? `scale(${1.06 + Math.random()*0.05})` : 'scale(1)';
+  if (hasPhoto()) {
+    cvPhotoScale = active ? 1.06 + Math.random() * 0.05 : 1;
+    photoImg.style.transform = active ? `scale(${cvPhotoScale})` : 'scale(1)';
     photoImg.style.transition = 'transform 0.12s ease';
   }
 }
+
+// عناصر تُرسم داخل الفيديو (تُملأ فقط أثناء التسجيل)
+const cvConfetti = [];
+const cvBubbles = [];
 
 function spawnConfetti(n) {
   for (let i = 0; i < n; i++) {
     const c = document.createElement('div');
     c.className = 'confetti';
-    c.style.left = Math.random()*100 + 'vw';
-    c.style.background = colors[Math.floor(Math.random()*colors.length)];
-    c.style.animationDuration = (2 + Math.random()*2) + 's';
-    c.style.width = (6 + Math.random()*8) + 'px';
-    c.style.height = (10 + Math.random()*10) + 'px';
+    const xn = Math.random();
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const dur = 2 + Math.random() * 2;
+    const w = 6 + Math.random() * 8;
+    const h = 10 + Math.random() * 10;
+    c.style.left = xn * 100 + 'vw';
+    c.style.background = color;
+    c.style.animationDuration = dur + 's';
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
     document.body.appendChild(c);
     setTimeout(() => c.remove(), 4500);
+    if (recording) cvConfetti.push({ xn, color, w, h, born: performance.now(), dur: dur * 1000 });
   }
 }
 
 function spawnPhotoBubbles(n) {
-  if (!photoImg.src) return;
+  if (!hasPhoto()) return;
   for (let i = 0; i < n; i++) {
     const b = document.createElement('div');
     b.className = 'photo-bubble';
     const size = 46 + Math.random() * 70;
+    const xn = (Math.random() * 92) / 100;
+    const yn0 = 1 + (Math.random() * 10) / 100;
+    const dur = 5 + Math.random() * 4;
+    const delay = Math.random() * 1.2;
     b.style.width = size + 'px';
     b.style.height = size + 'px';
-    b.style.left = Math.random() * 92 + 'vw';
-    b.style.top = 100 + Math.random() * 10 + 'vh';
-    const dur = 5 + Math.random() * 4;
-    b.style.animationDuration = `${dur}s, ${1.5 + Math.random()*2}s`;
-    b.style.animationDelay = (Math.random() * 1.2) + 's';
+    b.style.left = xn * 100 + 'vw';
+    b.style.top = yn0 * 100 + 'vh';
+    b.style.animationDuration = `${dur}s, ${1.5 + Math.random() * 2}s`;
+    b.style.animationDelay = delay + 's';
 
     const img = document.createElement('img');
     img.src = photoImg.src;
@@ -360,37 +503,23 @@ function spawnPhotoBubbles(n) {
 
     document.body.appendChild(b);
     setTimeout(() => b.remove(), (dur + 2) * 1000);
+    if (recording) cvBubbles.push({ xn, yn0, size, born: performance.now() + delay * 1000, dur: dur * 1000 });
   }
 }
 
 // ---------- Audio: Happy Birthday melody (public domain) ----------
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-// Note frequencies
-const N = {
-  C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00,
-  A4:440.00, B4:493.88, C5:523.25, D5:587.33, E5:659.25
-};
+// خرج الصوت: السماعات + تيار صوتي يُدمج داخل الفيديو
+const masterGain = audioCtx.createGain();
+masterGain.connect(audioCtx.destination);
+const streamDest = audioCtx.createMediaStreamDestination();
+masterGain.connect(streamDest);
+let activeOscs = [];
 
-// [note, duration in beats] — classic melody in C, beat = 0.4s
-const melody = [
-  [N.C4,0.75],[N.C4,0.25],[N.D4,1],[N.C4,1],[N.F4,1],[N.E4,2],
-  [N.C4,0.75],[N.C4,0.25],[N.D4,1],[N.C4,1],[N.G4,1],[N.F4,2],
-  [N.C4,0.75],[N.C4,0.25],[N.C5,1],[N.A4,1],[N.F4,1],[N.E4,1],[N.D4,2],
-  [N.B4,0.75+0.0],[N.A4,0.0], // placeholder removed below
-];
-
-// Rebuild a clean accurate sequence (standard Happy Birthday)
-const seq = [
-  ['C4',0.75], ['C4',0.25], ['D4',1], ['C4',1], ['F4',1], ['E4',2],
-  ['C4',0.75], ['C4',0.25], ['D4',1], ['C4',1], ['G4',1], ['F4',2],
-  ['C4',0.75], ['C4',0.25], ['C5',1], ['A4',1], ['F4',1], ['E4',1], ['D4',2],
-  ['A4S',0.75], ['A4S',0.25], // "Happy" (using Bb - approximate with A#4)
-];
-// Simplify: use a well-tested note table in key of F for a nicer range
 const FREQ = {
-  F4:349.23, G4:392.00, A4:440.00, A4S:466.16, Bb4:466.16,
-  C5:523.25, D5:587.33, C4:261.63
+  F4:349.23, G4:392.00, A4:440.00, Bb4:466.16,
+  C5:523.25, D5:587.33
 };
 const song = [
   // "Hap-py birth-day to you"
@@ -404,6 +533,17 @@ const song = [
 ];
 
 const lyricsWords = "عيد ميلاد سعيد ، عيد ميلاد سعيد ، عيد ميلاد يا غالي ، عيد ميلاد سعيد".split(' ');
+
+// تقسيم الكلمات إلى أسطر للرسم داخل الفيديو
+const lyricLines = [];
+(() => {
+  let cur = [];
+  lyricsWords.forEach((w, i) => {
+    cur.push({ w, i });
+    if (w === '،') { lyricLines.push(cur); cur = []; }
+  });
+  if (cur.length) lyricLines.push(cur);
+})();
 
 function renderLyrics() {
   lyricsBox.innerHTML = lyricsWords.map(w => `<span>${w}</span>`).join(' ');
@@ -426,7 +566,9 @@ function playSong() {
     osc.type = 'triangle';
     osc.frequency.value = freq;
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(masterGain);
+    activeOscs.push(osc);
+    osc.onended = () => { activeOscs = activeOscs.filter(o => o !== osc); };
 
     const startT = t;
     const endT = t + dur * beat * 0.92;
@@ -468,10 +610,14 @@ function playSong() {
 function stopCelebration() {
   isPlaying = false;
   clearAllTimeouts();
+  activeOscs.forEach(o => { try { o.stop(); } catch (e) {} });
+  activeOscs = [];
   flashLights(false);
   startBtn.disabled = false;
   startBtn.textContent = '🎵 ابدأ الاحتفال';
   stopBtn.classList.remove('show');
+  if (recording) stopRecording();
+  else recBtn.disabled = false;
 }
 
 function calcAge(dobStr) {
@@ -483,11 +629,14 @@ function calcAge(dobStr) {
   return age;
 }
 
-startBtn.addEventListener('click', () => {
+// يبدأ الاحتفال؛ يعيد false إذا لم يُدخل تاريخ الميلاد
+function beginCelebration() {
   if (!dobInput.value) {
     dobInput.style.borderColor = '#f87171';
-    return;
+    dobInput.focus();
+    return false;
   }
+  dobInput.style.borderColor = '';
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
   const age = calcAge(dobInput.value);
@@ -497,14 +646,371 @@ startBtn.addEventListener('click', () => {
 
   renderLyrics();
   startBtn.disabled = true;
+  recBtn.disabled = true;
   startBtn.textContent = '🎶 جارٍ العزف...';
   stopBtn.classList.add('show');
 
   isPlaying = true;
   playSong();
-});
+  return true;
+}
 
+startBtn.addEventListener('click', beginCelebration);
 stopBtn.addEventListener('click', stopCelebration);
+
+// =====================================================
+//                    إنشاء الفيديو
+// =====================================================
+let W = 720, H = 1280;
+let recorder = null;
+let recChunks = [];
+let recStart = 0;
+let recDurationMs = 0;
+let recTimer = null;
+let rafId = null;
+let cvPhoto = null;
+let lastVideoUrl = null;
+
+function roundRect(x, y, w, h, r) {
+  cx.beginPath();
+  cx.moveTo(x + r, y);
+  cx.arcTo(x + w, y, x + w, y + h, r);
+  cx.arcTo(x + w, y + h, x, y + h, r);
+  cx.arcTo(x, y + h, x, y, r);
+  cx.arcTo(x, y, x + w, y, r);
+  cx.closePath();
+}
+
+function drawCover(img, r) {
+  const iw = img.naturalWidth, ih = img.naturalHeight, m = Math.min(iw, ih);
+  cx.drawImage(img, (iw - m) / 2, (ih - m) / 2, m, m, -r, -r, 2 * r, 2 * r);
+}
+
+function drawFrame(now) {
+  const FONT = "'Segoe UI', Tahoma, Arial, sans-serif";
+  const unit = Math.max(1, Math.min(W, H) / 600);
+
+  // الخلفية
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.globalAlpha = 1;
+  cx.fillStyle = '#0d0d1a';
+  cx.fillRect(0, 0, W, H);
+
+  // الأضواء
+  bulbData.forEach(d => {
+    d.o += (d.to - d.o) * 0.5;
+    d.s += (d.ts - d.s) * 0.5;
+    cx.save();
+    cx.globalAlpha = d.o;
+    cx.shadowColor = d.color;
+    cx.shadowBlur = 24 * unit;
+    cx.fillStyle = d.color;
+    cx.beginPath();
+    cx.arc(d.x * W, d.y * H, 13 * d.s * unit, 0, Math.PI * 2);
+    cx.fill();
+    cx.restore();
+  });
+
+  // الصور العائمة
+  if (cvPhoto) {
+    for (let i = cvBubbles.length - 1; i >= 0; i--) {
+      const b = cvBubbles[i];
+      const t = (now - b.born) / b.dur;
+      if (t > 1) { cvBubbles.splice(i, 1); continue; }
+      if (t < 0) continue;
+      const alpha = t < 0.1 ? t / 0.1 : (t < 0.85 ? 1 : (1 - t) / 0.15);
+      const sc = t < 0.1 ? 0.6 + 0.4 * (t / 0.1) : 1 - 0.1 * ((t - 0.1) / 0.9);
+      const size = b.size * (Math.min(W, H) / 520) * sc;
+      const cxp = b.xn * W + size / 2;
+      const cyp = b.yn0 * H - H * Math.pow(t, 1.4) + size / 2;
+      cx.save();
+      cx.globalAlpha = Math.max(0, alpha);
+      cx.translate(cxp, cyp);
+      cx.shadowColor = 'rgba(0,0,0,0.5)';
+      cx.shadowBlur = 20;
+      cx.beginPath();
+      cx.arc(0, 0, size / 2, 0, Math.PI * 2);
+      cx.fillStyle = '#000';
+      cx.fill();
+      cx.shadowBlur = 0;
+      cx.save();
+      cx.beginPath();
+      cx.arc(0, 0, size / 2, 0, Math.PI * 2);
+      cx.clip();
+      drawCover(cvPhoto, size / 2);
+      cx.restore();
+      cx.lineWidth = 3;
+      cx.strokeStyle = 'rgba(251,191,36,0.85)';
+      cx.beginPath();
+      cx.arc(0, 0, size / 2, 0, Math.PI * 2);
+      cx.stroke();
+      cx.restore();
+    }
+  } else {
+    cvBubbles.length = 0;
+  }
+
+  // القصاصات
+  for (let i = cvConfetti.length - 1; i >= 0; i--) {
+    const c = cvConfetti[i];
+    const t = (now - c.born) / c.dur;
+    if (t > 1) { cvConfetti.splice(i, 1); continue; }
+    cx.save();
+    cx.globalAlpha = 0.9 - 0.5 * t;
+    cx.translate(c.xn * W, -20 + (H * 1.1 + 20) * t);
+    cx.rotate((540 * t * Math.PI) / 180);
+    cx.fillStyle = c.color;
+    const k = unit;
+    cx.fillRect(-c.w * k / 2, -c.h * k / 2, c.w * k, c.h * k);
+    cx.restore();
+  }
+
+  // البطاقة (إحداثيات 620×660 ثم تكبير/تصغير حسب الأبعاد)
+  const sc = Math.min((W * 0.92) / 620, (H * 0.92) / 660);
+  cx.save();
+  cx.translate(W / 2, H / 2);
+  cx.scale(sc, sc);
+  cx.direction = 'rtl';
+  cx.textBaseline = 'middle';
+
+  roundRect(-310, -330, 620, 660, 34);
+  cx.fillStyle = 'rgba(20,20,35,0.88)';
+  cx.fill();
+  cx.lineWidth = 2;
+  cx.strokeStyle = 'rgba(255,255,255,0.15)';
+  cx.stroke();
+
+  // العنوان
+  const grad = cx.createLinearGradient(-170, 0, 170, 0);
+  grad.addColorStop(0, '#fbbf24');
+  grad.addColorStop(0.5, '#f472b6');
+  grad.addColorStop(1, '#60a5fa');
+  cx.fillStyle = grad;
+  cx.textAlign = 'center';
+  cx.font = `bold 54px ${FONT}`;
+  cx.fillText('🎂 عيد ميلاد سعيد', 0, -280);
+
+  // العمر
+  cx.fillStyle = '#fde68a';
+  cx.font = `bold 28px ${FONT}`;
+  cx.fillText(ageLine.textContent, 0, -222);
+
+  // الصورة أو الكعكة
+  const py = -80, pr = 100;
+  if (cvPhoto) {
+    cx.save();
+    cx.translate(0, py);
+    cx.rotate((now / 12000) * Math.PI * 2);
+    cx.setLineDash([8, 8]);
+    cx.lineWidth = 2;
+    cx.strokeStyle = 'rgba(251,191,36,0.6)';
+    cx.beginPath();
+    cx.arc(0, 0, pr + 12, 0, Math.PI * 2);
+    cx.stroke();
+    cx.restore();
+
+    cx.save();
+    cx.translate(0, py);
+    cx.scale(cvPhotoScale, cvPhotoScale);
+    cx.shadowColor = 'rgba(0,0,0,0.5)';
+    cx.shadowBlur = 25;
+    cx.beginPath();
+    cx.arc(0, 0, pr, 0, Math.PI * 2);
+    cx.fillStyle = '#000';
+    cx.fill();
+    cx.shadowBlur = 0;
+    cx.save();
+    cx.beginPath();
+    cx.arc(0, 0, pr, 0, Math.PI * 2);
+    cx.clip();
+    drawCover(cvPhoto, pr);
+    cx.restore();
+    cx.lineWidth = 8;
+    cx.strokeStyle = '#fbbf24';
+    cx.beginPath();
+    cx.arc(0, 0, pr, 0, Math.PI * 2);
+    cx.stroke();
+    cx.lineWidth = 3;
+    cx.strokeStyle = '#f472b6';
+    cx.beginPath();
+    cx.arc(0, 0, pr + 5, 0, Math.PI * 2);
+    cx.stroke();
+    cx.restore();
+
+    cx.font = `34px ${FONT}`;
+    const decos = [['🎈', -112, -176], ['🎉', 112, -176], ['✨', -122, 20], ['🎂', 122, 20]];
+    decos.forEach(([e, x, y], k) => {
+      cx.fillText(e, x, y + Math.sin(now / 250 + k) * 7);
+    });
+  } else {
+    cx.font = `140px ${FONT}`;
+    cx.fillText('🎂', 0, py + Math.sin(now / 250) * 8);
+  }
+
+  // كلمات الأغنية (من اليمين إلى اليسار)
+  cx.font = `34px ${FONT}`;
+  cx.textAlign = 'left';
+  const spans = lyricsBox.children;
+  lyricLines.forEach((line, li) => {
+    const widths = line.map(o => cx.measureText(o.w).width);
+    const gap = 12;
+    const total = widths.reduce((a, b) => a + b, 0) + gap * (line.length - 1);
+    let x = total / 2;
+    const y = 105 + li * 58;
+    line.forEach((o, k) => {
+      x -= widths[k];
+      const on = spans[o.i] && spans[o.i].classList.contains('on');
+      cx.fillStyle = on ? '#fbbf24' : 'rgba(226,232,240,0.25)';
+      cx.fillText(o.w, x, y);
+      x -= gap;
+    });
+  });
+
+  cx.restore();
+}
+
+function fmt(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function recLoop() {
+  if (!recording) return;
+  const now = performance.now();
+  drawFrame(now);
+  const el = now - recStart;
+  progBar.style.width = Math.min(100, (el / recDurationMs) * 100) + '%';
+  recStatus.textContent = `🔴 جارٍ التسجيل ${fmt(el)} / ${fmt(recDurationMs)} — أبقِ هذه الصفحة مفتوحة`;
+  rafId = requestAnimationFrame(recLoop);
+}
+
+function pickMime() {
+  const list = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm'
+  ];
+  return list.find(m => MediaRecorder.isTypeSupported(m)) || '';
+}
+
+async function startRecording() {
+  if (typeof MediaRecorder === 'undefined' || !recCanvas.captureStream) {
+    recStatus.textContent = '⚠️ المتصفح لا يدعم تسجيل الفيديو. جرّب Chrome أو Edge أو Safari حديث.';
+    return;
+  }
+  if (!dobInput.value) {
+    dobInput.style.borderColor = '#f87171';
+    dobInput.focus();
+    recStatus.textContent = 'أدخل تاريخ الميلاد أولاً.';
+    return;
+  }
+
+  // مدة الفيديو
+  let secs = parseInt(durationInput.value, 10);
+  if (!secs || secs < 3) secs = 3;
+  if (secs > 600) secs = 600;
+  durationInput.value = secs;
+  recDurationMs = secs * 1000;
+
+  // الأبعاد
+  const [w, h] = ratioSelect.value.split('x').map(Number);
+  W = w; H = h;
+  recCanvas.width = W;
+  recCanvas.height = H;
+
+  // الصورة
+  cvPhoto = null;
+  if (hasPhoto()) {
+    const img = new Image();
+    img.src = photoImg.src;
+    try { await img.decode(); cvPhoto = img; } catch (e) { cvPhoto = null; }
+  }
+
+  // تهيئة الواجهة
+  if (lastVideoUrl) { URL.revokeObjectURL(lastVideoUrl); lastVideoUrl = null; }
+  previewVideo.classList.remove('show');
+  previewVideo.removeAttribute('src');
+  dlLink.classList.remove('show');
+  recCanvas.classList.add('show');
+  progress.classList.add('show');
+  progBar.style.width = '0%';
+  cvConfetti.length = 0;
+  cvBubbles.length = 0;
+
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  // المسجِّل: فيديو من اللوحة + صوت الأغنية
+  const vstream = recCanvas.captureStream(30);
+  streamDest.stream.getAudioTracks().forEach(tr => vstream.addTrack(tr));
+  const mime = pickMime();
+  const opts = { videoBitsPerSecond: 5000000, audioBitsPerSecond: 128000 };
+  if (mime) opts.mimeType = mime;
+  try {
+    recorder = new MediaRecorder(vstream, opts);
+  } catch (e) {
+    recStatus.textContent = '⚠️ تعذّر بدء المسجّل: ' + e.message;
+    recCanvas.classList.remove('show');
+    progress.classList.remove('show');
+    return;
+  }
+  recChunks = [];
+  recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+  recorder.onstop = finalizeRecording;
+
+  recording = true;
+  recStart = performance.now();
+  recorder.start(250);
+
+  if (!beginCelebration()) { // احتياط
+    recording = false;
+    try { recorder.stop(); } catch (e) {}
+    return;
+  }
+
+  recLoop();
+  recTimer = setTimeout(() => { if (recording) stopCelebration(); }, recDurationMs);
+}
+
+function stopRecording() {
+  recording = false;
+  clearTimeout(recTimer);
+  cancelAnimationFrame(rafId);
+  drawFrame(performance.now());
+  recStatus.textContent = '⏳ جارٍ تجهيز الفيديو...';
+  if (recorder && recorder.state !== 'inactive') {
+    try { recorder.stop(); } catch (e) { finalizeRecording(); }
+  }
+}
+
+function finalizeRecording() {
+  recBtn.disabled = false;
+  recCanvas.classList.remove('show');
+  progress.classList.remove('show');
+  if (!recChunks.length) {
+    recStatus.textContent = '⚠️ لم يتم تسجيل أي بيانات.';
+    return;
+  }
+  const type = (recorder && recorder.mimeType) || 'video/webm';
+  const ext = type.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(recChunks, { type: type.split(';')[0] });
+  lastVideoUrl = URL.createObjectURL(blob);
+
+  previewVideo.src = lastVideoUrl;
+  previewVideo.classList.add('show');
+
+  const name = `happy-birthday-${Math.round(recDurationMs / 1000)}s.${ext}`;
+  dlLink.href = lastVideoUrl;
+  dlLink.download = name;
+  dlLink.textContent = `⬇️ حفظ الفيديو (${name}) — ${(blob.size / 1048576).toFixed(1)} MB`;
+  dlLink.classList.add('show');
+
+  recStatus.textContent = '✅ تم إنشاء الفيديو، ويتم حفظه تلقائياً. إن لم يبدأ التحميل اضغط زر الحفظ.';
+  try { dlLink.click(); } catch (e) {}
+}
+
+recBtn.addEventListener('click', startRecording);
 </script>
 </body>
 </html>
