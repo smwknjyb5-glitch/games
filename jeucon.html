@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>تركيز</title>
+
+<style>
+body{
+    text-align:center;
+    font-family:Arial;
+    background:#f5f5f5;
+}
+
+#game{
+    width:420px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(3,120px);
+    gap:10px;
+}
+
+.cell{
+    width:100px;
+    height:100px;
+    border:2px solid #555;
+    background-size:cover;
+    cursor:pointer;
+}
+
+#info{
+    font-size:24px;
+    margin:15px;
+}
+</style>
+</head>
+<body>
+
+<h2>لعبة تركيز</h2>
+
+<div id="info">Tarkiz</div>
+<div id="score"> نقاطي: 0 / 20</div>
+
+<div id="game"></div>
+
+<script>
+
+const ROWS = 5;
+const COLS = 3;
+const TOTAL = ROWS * COLS;
+
+const lidImg =  "lid.png" ;
+
+const imgs = ["b1.png",
+"b2.png","b3.png","b4.png",
+
+];
+
+let score = 0;
+let targets = [];
+let playerChoices = [];
+let phase = "show";
+
+const game = document.getElementById("game");
+
+for(let i=0;i<TOTAL;i++){
+    let cell=document.createElement("div");
+    cell.className="cell";
+    cell.dataset.index=i;
+    cell.style.backgroundImage=`url(${lidImg})`;
+
+    cell.onclick=()=>clickCell(i);
+
+    game.appendChild(cell);
+}
+
+function updateScore(){
+    document.getElementById("score").innerHTML=
+    " نقاطي : "+score+" / 20";
+}
+
+function newRound(){
+
+    playerChoices=[];
+    targets=[];
+
+    let positions=[];
+
+    while(positions.length<4){
+        let r=Math.floor(Math.random()*TOTAL);
+        if(!positions.includes(r))
+            positions.push(r);
+    }
+
+    for(let i=0;i<4;i++){
+        targets.push({
+            pos:positions[i],
+            img:imgs[i]
+        });
+    }
+
+    phase="show";
+
+    document.getElementById("info").innerHTML="تركيز";
+
+    drawShow();
+
+    setTimeout(()=>{
+        hideAll();
+
+        setTimeout(()=>{
+            phase="guess";
+            document.getElementById("info").innerHTML="اختيار";
+        },1000);
+
+    },1500);
+}
+
+function drawShow(){
+
+    document.querySelectorAll(".cell").forEach(cell=>{
+        cell.style.backgroundImage=`url(${lidImg})`;
+        cell.style.border="2px solid #555";
+    });
+
+    targets.forEach(t=>{
+        let cell=document.querySelector(
+        `[data-index='${t.pos}']`);
+        cell.style.backgroundImage=`url(${t.img})`;
+    });
+}
+
+function hideAll(){
+    document.querySelectorAll(".cell").forEach(cell=>{
+        cell.style.backgroundImage=`url(${lidImg})`;
+    });
+}
+
+function clickCell(i){
+
+    if(phase!=="guess") return;
+
+    if(playerChoices.includes(i)) return;
+
+    playerChoices.push(i);
+
+    document.querySelector(
+    `[data-index='${i}']`)
+    .style.border="4px solid green";
+
+    if(playerChoices.length===4){
+
+        let correct=targets.map(t=>t.pos);
+
+        let ok=
+        playerChoices.every(x=>correct.includes(x));
+
+        if(ok){
+            score++;
+        }else{
+            score=0;
+        }
+
+        updateScore();
+
+        if(score>=20){
+
+            document.getElementById("info").innerHTML=
+            "20 repeter";
+
+        }else{
+
+            setTimeout(()=>{
+                newRound();
+            },1000);
+
+        }
+    }
+}
+
+newRound();
+
+</script>
+
+</body>
+</html>
+
+
