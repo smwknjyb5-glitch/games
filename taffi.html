@@ -1,0 +1,157 @@
+ <!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>إطفاء أعواد الثقاب</title>
+
+<style>
+body{
+    font-family:Tahoma;
+    background:#eef7ff;
+    text-align:center;
+}
+
+h2{
+    color:#d35400;
+}
+
+#info{
+    font-size:22px;
+    margin:15px;
+}
+
+#grid{
+    width:420px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    gap:10px;
+    justify-content:center;
+}
+
+.cell{
+    width:80px;
+    height:80px;
+    border:2px solid #888;
+    border-radius:8px;
+    background:white;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.cell img{
+    width:60px;
+    height:60px;
+}
+
+button{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:18px;
+}
+</style>
+
+</head>
+<body>
+
+<h2>أطفئ جميع أعواد الثقاب قبل انتهاء الوقت</h2>
+
+<div id="info">
+الوقت:
+<span id="time">20</span>
+ثانية
+</div>
+
+<div id="grid"></div>
+
+<button onclick="startGame()">إعادة اللعب</button>
+
+<script>
+
+const fire="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiznCV3yH_hLgBADSnnvuTeiumoBmu9pNPdCsgQUNjcl3Izr2Wio28gMsWhhiKzuQvz4UvUChbs3j0aTTRr6-JEnVb7VmP9E_FG3MnWuqUddkeqlYJ9MyNfbT03WlihLThjv0RGE3tPobYdt6zHPhvk1YtPj9hiziH1DxttKN8e0Hp7PX_5hx5C0-mgDhQ/s320/all%20on%20fire.png";
+const off="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi4Hg2DBtMcxviqaIIonsAZf5y5hVJFJgFAKcXB5SAlJMTXAi2RAn0CBYcRP704inDA9MMihB29_oeLsqW_K0xeBKt46JBIe97jwwZAV4U_CPpojZyatNYfvEPDlmdGOMrDm5nRvLNQps56oe0j5GtuV62kGwFWGvK4clr2rEwPVVWH4JJ0LEm3s665_Dk/s320/all%20off%20off.png"
+  ;
+
+const grid=document.getElementById("grid");
+
+let state=[];
+let timer;
+let time=20;
+
+function startGame(){
+
+clearInterval(timer);
+
+grid.innerHTML="";
+state=[];
+
+for(let i=0;i<18  ;i++){
+
+let burning=Math.random()<0.5;
+
+state.push(burning);
+
+let div=document.createElement("div");
+div.className="cell";
+
+let img=document.createElement("img");
+img.src=burning?fire:off;
+
+div.appendChild(img);
+
+div.onclick=function(){
+
+if(state[i]){
+
+state[i]=false;
+img.src=off;
+
+checkWin();
+
+}
+
+};
+
+grid.appendChild(div);
+
+}
+
+time=10;
+document.getElementById("time").textContent=time;
+
+timer=setInterval(function(){
+
+time--;
+document.getElementById("time").textContent=time;
+
+if(time==0){
+
+clearInterval(timer);
+
+alert("انتهى الوقت");
+
+}
+
+},1000);
+
+}
+
+function checkWin(){
+
+for(let x of state)
+if(x) return;
+
+clearInterval(timer);
+
+alert("🎉 أحسنت... لقد أطفأت جميع الأعواد.");
+
+}
+
+startGame();
+
+</script>
+
+</body>
+</html>
