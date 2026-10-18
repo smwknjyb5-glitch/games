@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ترتيب  القطع النقدية في الأنابيب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0a0e27;
+    --bg-mid:#131a3d;
+    --gold:#d4af37;
+    --gold-bright:#f4d03f;
+    --gold-dim:#8a7028;
+    --glass:rgba(212,175,55,0.12);
+    --glass-border:rgba(212,175,55,0.4);
+    --text:#f0ead6;
+    --text-dim:#a9a3c0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background: radial-gradient(ellipse at 20% 0%, #1a1f4a 0%, var(--bg-deep) 55%, #060814 100%);
+    font-family:'Cairo', sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  #stars{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+  .wrap{
+    position:relative; z-index:1;
+    max-width:960px;
+    margin:0 auto;
+    padding:28px 18px 60px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  header{
+    text-align:center;
+    margin-bottom:22px;
+  }
+  .eyebrow{
+    font-size:.8rem;
+    letter-spacing:.15em;
+    color:var(--gold-dim);
+    text-transform:uppercase;
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  h1{
+    font-family:'Amiri', serif;
+    font-size:2.5rem;
+    font-weight:700;
+    background:linear-gradient(90deg, var(--gold-bright), var(--gold));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow:0 0 30px rgba(212,175,55,0.25);
+  }
+  .sub{
+    color:var(--text-dim);
+    font-size:.95rem;
+    margin-top:6px;
+  }
+
+  .panel{
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
+    background:var(--glass);
+    border:1px solid var(--glass-border);
+    border-radius:16px;
+    padding:14px 18px;
+    margin-bottom:26px;
+    backdrop-filter:blur(6px);
+  }
+  .diff-group{display:flex; gap:8px;}
+  button{
+    font-family:'Cairo', sans-serif;
+    font-weight:700;
+    font-size:.9rem;
+    border:1px solid var(--glass-border);
+    background:rgba(255,255,255,0.03);
+    color:var(--text);
+    padding:9px 16px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .2s ease;
+  }
+  button:hover{ background:rgba(212,175,55,0.15); border-color:var(--gold); }
+  button.active{
+    background:linear-gradient(135deg, var(--gold), #b8902f);
+    color:#1a1508;
+    border-color:var(--gold-bright);
+    box-shadow:0 0 18px rgba(212,175,55,0.35);
+  }
+  .ctrl-group{display:flex; gap:8px;}
+  .ctrl-group button{ background:rgba(255,255,255,0.03); }
+  .stats{
+    display:flex; gap:22px; color:var(--text-dim); font-size:.9rem; font-weight:600;
+  }
+  .stats span b{ color:var(--gold-bright); font-size:1.05rem; }
+
+  #board{
+    width:100%;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:22px 26px;
+    padding:20px 0 10px;
+    min-height:280px;
+  }
+
+  .tube{
+    --cap:4;
+    width:64px;
+    height:calc(64px * var(--cap) + 26px);
+    position:relative;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column-reverse;
+    align-items:center;
+    padding:6px 8px 10px;
+    border-radius:0 0 30px 30px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(212,175,55,0.05));
+    border:2px solid var(--glass-border);
+    border-top:none;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.5), 0 6px 14px rgba(0,0,0,0.35);
+    transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .tube::before{
+    content:'';
+    position:absolute;
+    top:-2px; left:-2px; right:-2px; height:14px;
+    border-radius:14px 14px 0 0;
+    border:2px solid var(--glass-border);
+    border-bottom:none;
+    background:rgba(255,255,255,0.02);
+  }
+  .tube.selected{
+    transform:translateY(-14px);
+    border-color:var(--gold-bright);
+    box-shadow: 0 0 22px rgba(244,208,63,0.55), inset 0 0 18px rgba(0,0,0,0.5);
+  }
+  .tube.hint{
+    border-color:rgba(244,208,63,0.5);
+  }
+  .tube.solved{
+    border-color: rgba(120, 230, 160, 0.55);
+    box-shadow: 0 0 16px rgba(120,230,160,0.25), inset 0 0 18px rgba(0,0,0,0.5);
+  }
+
+   .ball{
+    width:48px;
+    height:48px;
+    object-fit:contain;
+    margin-top:4px;
+    animation:drop .22s ease;
+    flex-shrink:0;
+}
+  @keyframes drop{
+    from{ transform:translateY(-30px); opacity:0; }
+    to{ transform:translateY(0); opacity:1; }
+  }
+
+  .msg{
+    min-height:26px;
+    color:var(--gold-bright);
+    font-weight:700;
+    margin-top:18px;
+    text-align:center;
+  }
+
+  .win-overlay{
+    position:fixed; inset:0; z-index:5;
+    background:rgba(6,8,20,0.82);
+    display:none;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  .win-overlay.show{ display:flex; }
+  .win-card{
+    text-align:center;
+    background:linear-gradient(160deg, rgba(212,175,55,0.14), rgba(19,26,61,0.9));
+    border:1px solid var(--glass-border);
+    border-radius:20px;
+    padding:36px 44px;
+    box-shadow:0 0 50px rgba(212,175,55,0.25);
+  }
+  .win-card h2{
+    font-family:'Amiri', serif;
+    font-size:2.1rem;
+    color:var(--gold-bright);
+    margin-bottom:10px;
+  }
+  .win-card p{ color:var(--text-dim); margin-bottom:20px; }
+
+  footer{
+    margin-top:30px;
+    color:var(--text-dim);
+    font-size:.8rem;
+    text-align:center;
+    opacity:.7;
+  }
+
+  @media (max-width:520px){
+    h1{ font-size:1.9rem; }
+    .tube{ width:52px; height:calc(52px * var(--cap) + 22px); }
+    .ball{ width:38px; height:38px; margin-top:3px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .ball{ animation:none; }
+    .tube{ transition:none; }
+  }
+
+  button:focus-visible, .tube:focus-visible{
+    outline:2px solid var(--gold-bright);
+    outline-offset:3px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">لعبة تفكير ومنطق</div>
+    <h1>ترتيب  القطع النقدية</h1>
+    <div class="sub">افرز كل  قطعة نقدية في أنبوبها الخاص — انقر أنبوباً لتحديده، ثم انقر الوجهة</div>
+  </header>
+
+  <div class="panel">
+    <div class="diff-group" role="group" aria-label="مستوى الصعوبة">
+      <button data-diff="easy" class="active">سهل</button>
+      <button data-diff="medium">متوسط</button>
+      <button data-diff="hard">صعب</button>
+    </div>
+    <div class="ctrl-group">
+      <button id="undoBtn">↩ تراجع</button>
+      <button id="newBtn">🔀 لعبة جديدة</button>
+    </div>
+    <div class="stats">
+      <span>الحركات: <b id="moves">0</b></span>
+    </div>
+  </div>
+
+  <div id="board" role="group" aria-label="الأنابيب"></div>
+  <div class="msg" id="msg"></div>
+
+  <footer>موقع نجيب — تصميم وتطوير</footer>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card">
+    <h2>🏆 أحسنت!</h2>
+    <p id="winText">لقد رتبت جميع  القطع النقدية بنجاح</p>
+    <button id="playAgainBtn">لعب مرة أخرى</button>
+  </div>
+</div>
+
+<script>
+/* ===== خلفية النجوم المتحركة ===== */
+const starCanvas = document.getElementById('stars');
+const sctx = starCanvas.getContext('2d');
+let stars = [];
+function resizeStars(){
+  starCanvas.width = window.innerWidth;
+  starCanvas.height = window.innerHeight;
+  const count = Math.floor((starCanvas.width * starCanvas.height) / 9000);
+  stars = Array.from({length: count}, () => ({
+    x: Math.random()*starCanvas.width,
+    y: Math.random()*starCanvas.height,
+    r: Math.random()*1.3 + 0.2,
+    a: Math.random(),
+    speed: Math.random()*0.015 + 0.003
+  }));
+}
+function drawStars(){
+  sctx.clearRect(0,0,starCanvas.width, starCanvas.height);
+  for(const s of stars){
+    s.a += s.speed;
+    const tw = (Math.sin(s.a) + 1) / 2;
+    sctx.beginPath();
+    sctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    sctx.fillStyle = `rgba(244,208,63,${0.15 + tw*0.5})`;
+    sctx.fill();
+  }
+  requestAnimationFrame(drawStars);
+}
+resizeStars();
+window.addEventListener('resize', resizeStars);
+drawStars();
+
+/* ===== منطق اللعبة ===== */
+ const PALETTE = [
+  "coin1.png",
+  "coin2.png",
+  "coin3.png",
+  "coin4.png",
+  "coin5.png",
+  "coin6.png",
+  "coin7.png",
+  "coin8.png"
+];
+const CAPACITY = 4;
+const DIFF = {
+  easy:   {colors:4, empties:2},
+  medium: {colors:6, empties:2},
+  hard:   {colors:8, empties:2},
+};
+
+let currentDiff = 'easy';
+let tubes = [];
+let selected = null;
+let history = [];
+let moves = 0;
+
+const board = document.getElementById('board');
+const msg = document.getElementById('msg');
+const movesEl = document.getElementById('moves');
+const winOverlay = document.getElementById('winOverlay');
+const winText = document.getElementById('winText');
+
+function shuffledBallStack(numColors){
+  let balls = [];
+  for(let c=0;c<numColors;c++){
+    for(let i=0;i<CAPACITY;i++) balls.push(PALETTE[c]);
+  }
+  // خلط عشوائي (Fisher-Yates)
+  for(let i=balls.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [balls[i], balls[j]] = [balls[j], balls[i]];
+  }
+  return balls;
+}
+
+function newGame(diff){
+  currentDiff = diff;
+  const {colors, empties} = DIFF[diff];
+  let balls = shuffledBallStack(colors);
+  tubes = [];
+  for(let c=0;c<colors;c++){
+    tubes.push(balls.splice(0, CAPACITY));
+  }
+  for(let e=0;e<empties;e++) tubes.push([]);
+
+  // تجنب توليد لعبة محلولة مسبقاً (نادر جداً لكن للاحتياط)
+  selected = null;
+  history = [];
+  moves = 0;
+  movesEl.textContent = moves;
+  msg.textContent = '';
+  winOverlay.classList.remove('show');
+  render();
+}
+
+function cloneState(){
+  return tubes.map(t => [...t]);
+}
+
+function isTubeSolved(t){
+  if(t.length === 0) return true;
+  if(t.length !== CAPACITY) return false;
+  return t.every(b => b === t[0]);
+}
+
+function checkWin(){
+  return tubes.every(isTubeSolved);
+}
+
+function canPour(fromIdx, toIdx){
+  if(fromIdx === toIdx) return false;
+  const from = tubes[fromIdx], to = tubes[toIdx];
+  if(from.length === 0) return false;
+  if(to.length >= CAPACITY) return false;
+  const topColor = from[from.length-1];
+  if(to.length === 0) return true;
+  return to[to.length-1] === topColor;
+}
+
+function pour(fromIdx, toIdx){
+  const from = tubes[fromIdx], to = tubes[toIdx];
+  const topColor = from[from.length-1];
+  let moved = 0;
+  while(from.length && from[from.length-1] === topColor && to.length < CAPACITY){
+    to.push(from.pop());
+    moved++;
+  }
+  return moved;
+}
+
+function handleTubeClick(idx){
+  if(winOverlay.classList.contains('show')) return;
+
+  if(selected === null){
+    if(tubes[idx].length === 0){
+      flashMsg('الأنبوب فارغ — اختر أنبوباً به  قطع');
+      return;
+    }
+    selected = idx;
+    render();
+    return;
+  }
+
+  if(selected === idx){
+    selected = null;
+    render();
+    return;
+  }
+
+  if(canPour(selected, idx)){
+    history.push(cloneState());
+    pour(selected, idx);
+    moves++;
+    movesEl.textContent = moves;
+    selected = null;
+    render();
+    if(checkWin()){
+      setTimeout(()=>{
+        winText.textContent = `أنهيت المستوى بـ ${moves} حركة 🎉`;
+        winOverlay.classList.add('show');
+      }, 250);
+    }
+  } else {
+    flashMsg('لا يمكن نقل  القطع  إلى هنا');
+    selected = idx;
+    render();
+  }
+}
+
+let msgTimeout;
+function flashMsg(text){
+  msg.textContent = text;
+  clearTimeout(msgTimeout);
+  msgTimeout = setTimeout(()=>{ msg.textContent=''; }, 1500);
+}
+
+function undo(){
+  if(!history.length) return;
+  tubes = history.pop();
+  selected = null;
+  moves = Math.max(0, moves-1);
+  movesEl.textContent = moves;
+  render();
+}
+
+function render(){
+  board.innerHTML = '';
+  tubes.forEach((t, idx) => {
+    const el = document.createElement('div');
+    el.className = 'tube';
+    el.style.setProperty('--cap', CAPACITY);
+    el.tabIndex = 0;
+    el.setAttribute('role','button');
+    el.setAttribute('aria-label', `أنبوب ${idx+1}، يحتوي ${t.length} كرة`);
+    if(idx === selected) el.classList.add('selected');
+    if(isTubeSolved(t) && t.length===CAPACITY) el.classList.add('solved');
+
+    t.forEach(color => {
+        const img = document.createElement("img");
+img.src = color;
+img.className = "ball";
+el.appendChild(img);
+    });
+
+    el.addEventListener('click', ()=>handleTubeClick(idx));
+    el.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleTubeClick(idx); }
+    });
+    board.appendChild(el);
+  });
+}
+
+
+
+/* ===== أحداث الواجهة ===== */
+document.querySelectorAll('[data-diff]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-diff]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    newGame(btn.dataset.diff);
+  });
+});
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('newBtn').addEventListener('click', ()=>newGame(currentDiff));
+document.getElementById('playAgainBtn').addEventListener('click', ()=>newGame(currentDiff));
+
+newGame('easy');
+</script>
+</body>
+</html>
+
