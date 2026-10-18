@@ -1,0 +1,161 @@
+ <!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ترتيب الاحتمالات</title>
+<style>
+:root{--bg:#0b1530;--bg2:#13224a;--gold:#e8c15a;--ink:#f3efe2;--mute:#9fb0d6;--line:#2a3d73}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:"Segoe UI",Tahoma,system-ui,sans-serif;
+background:radial-gradient(1.5px 1.5px at 20% 30%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 70% 15%,#fff7 50%,transparent 51%),radial-gradient(1.5px 1.5px at 85% 70%,#e8c15a99 50%,transparent 51%),radial-gradient(1px 1px at 35% 80%,#fff6 50%,transparent 51%),var(--bg);padding:20px 14px 40px}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:1.9rem;margin:6px 0 4px;color:var(--gold);letter-spacing:.02em}
+.sub{color:var(--mute);margin:0 0 20px;line-height:1.7}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{flex:1;padding:11px;border:1px solid var(--line);background:transparent;color:var(--mute);border-radius:10px;font:inherit;cursor:pointer}
+.tab.on{background:var(--gold);color:#1a1a1a;border-color:var(--gold);font-weight:700}
+label{display:block;margin:12px 0 6px;color:var(--mute);font-size:.92rem}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1330;color:var(--ink);font:inherit;font-size:1.15rem;text-align:center}
+input:focus,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.go{width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--gold);color:#1a1a1a;font:inherit;font-weight:700;font-size:1.05rem;cursor:pointer}
+.hint{color:var(--mute);font-size:.85rem;margin-top:8px;line-height:1.6}
+#info{margin:18px 0 10px;display:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+#count{font-size:1.1rem}#count b{color:var(--gold);font-size:1.4rem}
+.acts{display:flex;gap:8px}
+.acts button{padding:8px 14px;border-radius:9px;border:1px solid var(--gold);background:transparent;color:var(--gold);font:inherit;cursor:pointer}
+#out{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:6px 11px;border-radius:8px;background:#0a1330;border:1px solid var(--line);font-size:1.05rem;letter-spacing:.12em;direction:ltr}
+#more{display:none;margin:16px auto 0;padding:11px 24px;border-radius:10px;border:1px solid var(--gold);background:transparent;color:var(--gold);font:inherit;cursor:pointer}
+#err{color:#ff9a8a;margin-top:10px;min-height:1.2em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ترتيب الاحتمالات</h1>
+  <p class="sub">أدخل حروفًا أو حدّد عدد الأرقام من 1 إلى 9، وسيُظهر لك الموقع كل الترتيبات الممكنة.</p>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab on" id="tL" type="button">حروف</button>
+      <button class="tab" id="tD" type="button">أرقام</button>
+    </div>
+
+    <div id="fL">
+      <label for="letters">اكتب الحروف (حتى 9)</label>
+      <input id="letters" placeholder="مثال: كتاب" autocomplete="off">
+    </div>
+    <div id="fD" hidden>
+      <label for="nd">عدد الأرقام (من 1 إلى 9)</label>
+      <input id="nd" type="number" min="1" max="9" inputmode="numeric" placeholder="مثال: 4">
+      <div class="hint">يستعمل الأرقام المتتالية 1 … n، فعدد 4 يعني 1 و2 و3 و4.</div>
+      <label for="free">أو اكتب أرقامًا غير متتالية (تُقدَّم على الخانة السابقة)</label>
+      <input id="free" inputmode="numeric" placeholder="مثال: 2 5 7 9 أو 0358" autocomplete="off">
+      <div class="hint">يمكنك الكتابة بمسافات أو فواصل أو متصلة، وتُقبل الأرقام من 0 إلى 9 (حتى 9 أرقام).</div>
+    </div>
+
+    <label for="len">طول الترتيب (اتركه فارغًا لاستعمال الكل)</label>
+    <input id="len" type="number" min="1" max="9" inputmode="numeric" placeholder="اختياري">
+
+    <button class="go" id="go" type="button">رتّب</button>
+    <div class="hint">إذا تكرّر حرف في المدخلات فلن يتكرر أي ترتيب في النتائج.</div>
+    <div id="err" role="alert"></div>
+  </div>
+
+  <div id="info">
+    <div id="count"></div>
+    <div class="acts">
+      <button id="copy" type="button">نسخ الكل</button>
+      <button id="dl" type="button">تنزيل txt</button>
+    </div>
+  </div>
+  <div id="out"></div>
+  <button id="more" type="button">عرض المزيد</button>
+</div>
+
+<script>
+(function(){
+  var mode='L',res=[],shown=0,PAGE=600;
+  var $=function(i){return document.getElementById(i)};
+
+  function setMode(m){
+    mode=m;
+    $('tL').classList.toggle('on',m==='L');
+    $('tD').classList.toggle('on',m==='D');
+    $('fL').hidden=m!=='L';
+    $('fD').hidden=m!=='D';
+    $('err').textContent='';
+  }
+  $('tL').onclick=function(){setMode('L')};
+  $('tD').onclick=function(){setMode('D')};
+
+  function permute(chars,r){
+    var counts={},keys=[],out=[],cur=[];
+    chars.forEach(function(c){if(counts[c]===undefined){counts[c]=0;keys.push(c)}counts[c]++});
+    (function rec(){
+      if(cur.length===r){out.push(cur.join(''));return}
+      for(var i=0;i<keys.length;i++){
+        var k=keys[i];
+        if(counts[k]>0){counts[k]--;cur.push(k);rec();cur.pop();counts[k]++}
+      }
+    })();
+    return out;
+  }
+
+  function render(){
+    var box=$('out'),frag=document.createDocumentFragment();
+    var end=Math.min(shown+PAGE,res.length);
+    for(var i=shown;i<end;i++){
+      var s=document.createElement('span');
+      s.className='chip';s.textContent=res[i];frag.appendChild(s);
+    }
+    box.appendChild(frag);shown=end;
+    $('more').style.display=shown<res.length?'block':'none';
+    $('more').textContent='عرض المزيد ('+(res.length-shown).toLocaleString('ar')+' متبقٍّ)';
+  }
+
+  $('go').onclick=function(){
+    var err=$('err');err.textContent='';
+    var chars;
+    if(mode==='L'){
+      chars=Array.from($('letters').value.replace(/\s+/g,''));
+      if(!chars.length){err.textContent='اكتب حرفًا واحدًا على الأقل.';return}
+      if(chars.length>9){err.textContent='الحد الأقصى 9 حروف.';return}
+    }else{
+      var free=$('free').value.replace(/[٠-٩]/g,function(d){return d.charCodeAt(0)-1632}).replace(/[^0-9]/g,'');
+      if(free){
+        chars=free.split('');
+        if(chars.length>9){err.textContent='الحد الأقصى 9 أرقام.';return}
+      }else{
+        var n=parseInt($('nd').value,10);
+        if(!(n>=1&&n<=9)){err.textContent='أدخل عددًا بين 1 و9، أو اكتب الأرقام مباشرة.';return}
+        chars=[];for(var i=1;i<=n;i++)chars.push(String(i));
+      }
+    }
+    var r=$('len').value===''?chars.length:parseInt($('len').value,10);
+    if(!(r>=1&&r<=chars.length)){err.textContent='طول الترتيب يجب أن يكون بين 1 و'+chars.length+'.';return}
+
+    res=permute(chars,r);shown=0;$('out').innerHTML='';
+    $('info').style.display='flex';
+    $('count').innerHTML='عدد الاحتمالات: <b>'+res.length.toLocaleString('ar')+'</b>';
+    render();
+  };
+  $('more').onclick=render;
+
+  $('copy').onclick=function(){
+    var t=res.join('\n'),b=$('copy');
+    function ok(){b.textContent='تم النسخ';setTimeout(function(){b.textContent='نسخ الكل'},1500)}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok)}
+    else{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();ok()}
+  };
+  $('dl').onclick=function(){
+    var u=URL.createObjectURL(new Blob([res.join('\n')],{type:'text/plain;charset=utf-8'}));
+    var a=document.createElement('a');a.href=u;a.download='ihtimalat.txt';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(u)},1000);
+  };
+})();
+</script>
+</body>
+</html>
