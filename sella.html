@@ -1,0 +1,118 @@
+ <!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لعبة السلة</title>
+<style>
+:root{--bg:#f4efe6;--fg:#1d2a3a;--card:#fff;--acc:#e8702a;--mut:#6b7686;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a2b;--fg:#f1ece0;--card:#1b2a44;--acc:#ff8a3d;--mut:#9aa7ba}}
+:root[data-theme="dark"]{--bg:#101a2b;--fg:#f1ece0;--card:#1b2a44;--acc:#ff8a3d;--mut:#9aa7ba}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding:10px;max-width:900px;margin-inline:auto}
+h1{font-size:1.2rem;margin:4px 0 8px;text-align:center}
+.bar{display:flex;gap:8px;justify-content:space-between;margin-bottom:8px}
+.bar div{flex:1;background:var(--card);border-radius:10px;padding:6px;text-align:center;font-size:.8rem;color:var(--mut)}
+.bar b{display:block;font-size:1.3rem;color:var(--fg)}
+canvas{width:100%;height:auto;display:block;border-radius:12px;touch-action:none;background:#8fd0f0}
+p{font-size:.85rem;color:var(--mut);text-align:center;margin:8px 0}
+button{display:block;margin:6px auto;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:8px 18px;font-size:.95rem}
+</style>
+</head>
+<body>
+<h1>🏀 لعبة السلة</h1>
+<div class="bar">
+<div>النقاط<b id="sc">0</b></div>
+<div>التسديدات<b id="sh">0</b></div>
+<div>التتابع<b id="st">0</b></div>
+<div>أفضل نتيجة<b id="bs">0</b></div>
+</div>
+<canvas id="c" width="800" height="450"></canvas>
+<p>اسحب بإصبعك أو الفأرة إلى الخلف ثم أفلت لرمي الكرة نحو السلة. إصابة نظيفة بلا لمس الحلقة = 3 نقاط، وإلا 2.</p>
+<button id="rs">إعادة اللعبة</button>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const G=900,GROUND=390,PH=130,HEAD=GROUND-PH;
+const PX=130,HAND={x:PX+28,y:GROUND-PH*0.62};
+const RIM={l:610,r:670,y:HEAD};
+const BOARD={x:680,top:HEAD-70,bot:HEAD+12};
+const R=13;
+let score=0,shots=0,streak=0,best=0,ball,drag=null,msg='',msgT=0,touchedRim=false,scored=false,flightT=0;
+try{best=+localStorage.getItem('salla_best')||0}catch(e){}
+const $=id=>document.getElementById(id);
+function ui(){$('sc').textContent=score;$('sh').textContent=shots;$('st').textContent=streak;$('bs').textContent=best}
+function reset(){ball={x:HAND.x,y:HAND.y,vx:0,vy:0,fly:false};touchedRim=false;scored=false;flightT=0}
+function say(t){msg=t;msgT=1.4}
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height}}
+cv.addEventListener('pointerdown',e=>{if(ball.fly)return;cv.setPointerCapture(e.pointerId);const p=pos(e);drag={sx:p.x,sy:p.y,cx:p.x,cy:p.y}});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const p=pos(e);drag.cx=p.x;drag.cy=p.y});
+cv.addEventListener('pointerup',()=>{if(!drag)return;const v=vel();drag=null;if(Math.hypot(v.x,v.y)<150)return;ball.vx=v.x;ball.vy=v.y;ball.fly=true;shots++;ui()});
+cv.addEventListener('pointercancel',()=>{drag=null});
+function vel(){let dx=(drag.sx-drag.cx)*5,dy=(drag.sy-drag.cy)*5;const m=Math.hypot(dx,dy),M=850;if(m>M){dx*=M/m;dy*=M/m}return{x:dx,y:dy}}
+function hitPoint(px,py,rad){const dx=ball.x-px,dy=ball.y-py,d=Math.hypot(dx,dy);if(d<R+rad&&d>0){const nx=dx/d,ny=dy/d;ball.x=px+nx*(R+rad);ball.y=py+ny*(R+rad);const dot=ball.vx*nx+ball.vy*ny;if(dot<0){ball.vx-=1.6*dot*nx;ball.vy-=1.6*dot*ny;ball.vx*=.8;ball.vy*=.8}touchedRim=true}}
+function step(dt){
+ if(msgT>0)msgT-=dt;
+ if(!ball.fly)return;
+ flightT+=dt;
+ const py=ball.y;
+ ball.vy+=G*dt;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
+ hitPoint(RIM.l,RIM.y,4);hitPoint(RIM.r,RIM.y,4);
+ if(ball.x+R>BOARD.x&&ball.y>BOARD.top&&ball.y<BOARD.bot&&ball.x<BOARD.x+14){ball.x=BOARD.x-R;ball.vx=-Math.abs(ball.vx)*.6;touchedRim=true}
+ if(!scored&&ball.vy>0&&py<RIM.y&&ball.y>=RIM.y&&ball.x>RIM.l+3&&ball.x<RIM.r-3){
+  scored=true;const pts=touchedRim?2:3;score+=pts;streak++;
+  if(score>best){best=score;try{localStorage.setItem('salla_best',best)}catch(e){}}
+  say(touchedRim?'+2 هدف! 🏀':'+3 تسديدة نظيفة! ✨');ui()}
+ if(ball.y>GROUND-R){ball.y=GROUND-R;ball.vy*=-.5;ball.vx*=.7;if(Math.abs(ball.vy)<60)ball.vy=0}
+ if(ball.x<R){ball.x=R;ball.vx*=-.5}
+ if(ball.x>cv.width-R){ball.x=cv.width-R;ball.vx*=-.5}
+ const still=ball.y>=GROUND-R-1&&Math.abs(ball.vx)<20&&Math.abs(ball.vy)<5;
+ if(still||flightT>5||ball.x>cv.width-R-1&&flightT>1.5){if(!scored){if(streak>0)say('أخطأت');streak=0;ui()}reset()}
+}
+function person(){
+ ctx.strokeStyle='#1d2a3a';ctx.fillStyle='#1d2a3a';ctx.lineWidth=7;ctx.lineCap='round';
+ const hx=PX,top=HEAD,neck=top+28,hip=GROUND-60;
+ ctx.beginPath();ctx.arc(hx,top+14,14,0,7);ctx.fill();
+ ctx.beginPath();ctx.moveTo(hx,neck);ctx.lineTo(hx,hip);
+ ctx.moveTo(hx,hip);ctx.lineTo(hx-16,GROUND);ctx.moveTo(hx,hip);ctx.lineTo(hx+16,GROUND);
+ let ax=HAND.x,ay=HAND.y;
+ if(drag){const v=vel(),m=Math.hypot(v.x,v.y)||1;ax=HAND.x-v.x/m*8;ay=HAND.y-v.y/m*8}
+ ctx.moveTo(hx,neck+14);ctx.lineTo(ax-R+4,ay);
+ ctx.moveTo(hx,neck+14);ctx.lineTo(hx-18,neck+46);
+ ctx.stroke();
+}
+function draw(){
+ ctx.clearRect(0,0,800,450);
+ ctx.fillStyle='#8fd0f0';ctx.fillRect(0,0,800,GROUND);
+ ctx.fillStyle='#d9a066';ctx.fillRect(0,GROUND,800,60);
+ ctx.fillStyle='#b97e45';ctx.fillRect(0,GROUND,800,5);
+ // pole & board
+ ctx.fillStyle='#555';ctx.fillRect(BOARD.x+14,BOARD.top,8,GROUND-BOARD.top);
+ ctx.fillStyle='#fff';ctx.strokeStyle='#c33';ctx.lineWidth=3;
+ ctx.fillRect(BOARD.x,BOARD.top,14,BOARD.bot-BOARD.top);
+ // net
+ ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();
+ for(let i=0;i<=4;i++){const x=RIM.l+i*(RIM.r-RIM.l)/4;ctx.moveTo(x,RIM.y);ctx.lineTo(RIM.l+10+i*(RIM.r-RIM.l-20)/4,RIM.y+36)}
+ ctx.moveTo(RIM.l+4,RIM.y+14);ctx.lineTo(RIM.r-4,RIM.y+14);ctx.moveTo(RIM.l+8,RIM.y+26);ctx.lineTo(RIM.r-8,RIM.y+26);ctx.stroke();
+ // rim
+ ctx.strokeStyle='#e8402a';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RIM.l,RIM.y);ctx.lineTo(RIM.r,RIM.y);ctx.stroke();
+ // height guide
+ ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(30,40,60,.45)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(PX+30,HEAD);ctx.lineTo(RIM.l-8,HEAD);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='rgba(30,40,60,.7)';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('ارتفاع السلة = ارتفاع اللاعب',(PX+RIM.l)/2+10,HEAD-8);
+ person();
+ // trajectory preview
+ if(drag){const v=vel();ctx.fillStyle='rgba(255,255,255,.85)';let x=HAND.x,y=HAND.y,vx=v.x,vy=v.y;
+  for(let i=0;i<22;i++){for(let k=0;k<3;k++){vy+=G*.016/3*1;x+=vx*.016/3;y+=vy*.016/3}ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill()}}
+ // ball
+ ctx.save();ctx.translate(ball.x,ball.y);ctx.rotate((ball.x+ball.y)/18);
+ ctx.fillStyle='#e8702a';ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.fill();
+ ctx.strokeStyle='#5a2a0a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.moveTo(-R,0);ctx.lineTo(R,0);ctx.moveTo(0,-R);ctx.lineTo(0,R);ctx.stroke();ctx.restore();
+ if(msgT>0){ctx.globalAlpha=Math.min(1,msgT*2);ctx.fillStyle='#1d2a3a';ctx.font='bold 30px system-ui';ctx.textAlign='center';ctx.fillText(msg,400,100);ctx.globalAlpha=1}
+}
+let last=performance.now();
+function loop(t){let dt=Math.min(.033,(t-last)/1000);last=t;const n=4;for(let i=0;i<n;i++)step(dt/n);draw();requestAnimationFrame(loop)}
+$('rs').onclick=()=>{score=0;shots=0;streak=0;reset();ui()};
+reset();ui();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
